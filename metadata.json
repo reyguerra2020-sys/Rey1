@@ -1,0 +1,6 @@
+{
+  "name": "Force 4G+ LTE",
+  "description": "Herramienta avanzada para forzar y monitorear la agregación de portadores LTE+ / 4G+, bloqueo de bandas y menús de servicio de red.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

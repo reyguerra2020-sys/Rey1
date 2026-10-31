@@ -57,6 +57,12 @@ import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.SignalGreen
 import com.example.ui.theme.SignalGreenText
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
@@ -89,6 +95,17 @@ fun MainAppScreen(viewModel: MainViewModel) {
     val isSingleBandMode by viewModel.isSingleBandMode.collectAsStateWithLifecycle()
     val selectedSingleBand by viewModel.selectedSingleBand.collectAsStateWithLifecycle()
     val selectedBands by viewModel.selectedBands.collectAsStateWithLifecycle()
+    val shizukuStatus by viewModel.shizukuStatus.collectAsStateWithLifecycle()
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     val isCaActive = cellDetails.isCarrierAggregationActive || keepaliveStats.isRunning
 
@@ -275,8 +292,14 @@ fun MainAppScreen(viewModel: MainViewModel) {
                 AppTab.FORCE_CA -> ForceCaScreen(
                     cellDetails = cellDetails,
                     keepaliveStats = keepaliveStats,
-                    onToggleCa = { viewModel.toggleCaForce() },
-                    onSetIntensity = { viewModel.setCaIntensity(it) }
+                    shizukuStatus = shizukuStatus,
+                    onToggleCa = { viewModel.toggleCaForce(context) },
+                    onSetIntensity = { viewModel.setCaIntensity(it) },
+                    onRequestShizukuPermission = { viewModel.requestShizukuPermission() },
+                    onOpenShizukuApp = { viewModel.openShizukuApp(context) },
+                    onExecuteShizukuLteOnly = { viewModel.executeShizukuLteOnly(1) },
+                    onExecuteShizukuNrLte = { viewModel.executeShizukuNrLte(1) },
+                    onExecuteShizukuModemReset = { viewModel.executeShizukuModemReset() }
                 )
                 AppTab.BAND_LOCK -> BandLockScreen(
                     cellDetails = cellDetails,

@@ -21,20 +21,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.NetworkCheck
+import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -45,6 +46,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,8 +54,8 @@ import com.example.engine.KeepaliveStats
 import com.example.engine.SystemShortcuts
 import com.example.model.CaIntensity
 import com.example.model.CellDetails
+import com.example.shizuku.ShizukuStatus
 import com.example.ui.components.MetricItem
-import com.example.ui.components.StatusBadge
 import com.example.ui.theme.CyanPrimary
 import com.example.ui.theme.SignalGreen
 import com.example.ui.theme.SignalGreenContainer
@@ -64,8 +66,14 @@ import com.example.ui.theme.WarningAmber
 fun ForceCaScreen(
     cellDetails: CellDetails,
     keepaliveStats: KeepaliveStats,
+    shizukuStatus: ShizukuStatus,
     onToggleCa: () -> Unit,
     onSetIntensity: (CaIntensity) -> Unit,
+    onRequestShizukuPermission: () -> Unit,
+    onOpenShizukuApp: () -> Unit,
+    onExecuteShizukuLteOnly: () -> Unit,
+    onExecuteShizukuNrLte: () -> Unit,
+    onExecuteShizukuModemReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -150,7 +158,7 @@ fun ForceCaScreen(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = if (isRunning) "MANTENIENDO PORTADORES ACTIVOS" else "INACTIVO",
+                                        text = if (isRunning) "SERVICIO PERMANENTE ACTIVO" else "INACTIVO",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isRunning) SignalGreenText else MaterialTheme.colorScheme.onSurfaceVariant
@@ -171,7 +179,35 @@ fun ForceCaScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Background Service persistence badge
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = if (isRunning) SignalGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudDone,
+                                contentDescription = null,
+                                tint = if (isRunning) SignalGreenText else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Foreground Service Activo: No se desconecta al cerrar la app o apagar la pantalla.",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isRunning) SignalGreenText else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
                             text = keepaliveStats.statusMessage,
@@ -216,10 +252,205 @@ fun ForceCaScreen(
                             val transferredKb = keepaliveStats.totalBytesTransferred / 1024
                             val transferredMb = transferredKb / 1024.0
                             Text(
-                                text = "Consumo de ráfagas: ${if (transferredMb >= 1.0) String.format("%.2f MB", transferredMb) else "$transferredKb KB"} (Límite de protección: 100 MB)",
+                                text = "Consumo acumulado: ${if (transferredMb >= 1.0) String.format("%.2f MB", transferredMb) else "$transferredKb KB"} (Notificación continua activa)",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Shizuku Integration Card (Elevated ADB Permissions without root)
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.5.dp,
+                        color = if (shizukuStatus.isPermissionGranted) SignalGreen else CyanPrimary,
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .testTag("shizuku_integration_card")
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(
+                                        if (shizukuStatus.isPermissionGranted) SignalGreen.copy(alpha = 0.2f) else CyanPrimary.copy(alpha = 0.2f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Terminal,
+                                    contentDescription = null,
+                                    tint = if (shizukuStatus.isPermissionGranted) SignalGreen else CyanPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Permiso Shizuku (ADB Shell)",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Comandos de red elevados a nivel de sistema",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Shizuku status pill
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = when {
+                                        shizukuStatus.isPermissionGranted -> SignalGreen.copy(alpha = 0.2f)
+                                        shizukuStatus.isRunning -> WarningAmber.copy(alpha = 0.2f)
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = when {
+                                    shizukuStatus.isPermissionGranted -> "CONECTADO"
+                                    shizukuStatus.isRunning -> "AUTORIZAR"
+                                    else -> "NO DETECTADO"
+                                },
+                                color = when {
+                                    shizukuStatus.isPermissionGranted -> SignalGreenText
+                                    shizukuStatus.isRunning -> WarningAmber
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "Con Shizuku, la aplicación puede enviar comandos ADB al subsistema de telefonía ('cmd phone') para forzar la red a solo LTE o NR/5G sin requerir root.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (!shizukuStatus.isPermissionGranted) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (shizukuStatus.isRunning) {
+                                Button(
+                                    onClick = onRequestShizukuPermission,
+                                    colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f).testTag("request_shizuku_perm_button")
+                                ) {
+                                    Text(
+                                        text = "Conceder Permiso Shizuku",
+                                        color = Color(0xFF00363D),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            } else {
+                                Button(
+                                    onClick = onOpenShizukuApp,
+                                    colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f).testTag("open_shizuku_app_button")
+                                ) {
+                                    Icon(Icons.Default.Launch, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF00363D))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Abrir / Iniciar Shizuku",
+                                        color = Color(0xFF00363D),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Elevated Shizuku Controls
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = onExecuteShizukuLteOnly,
+                                colors = ButtonDefaults.buttonColors(containerColor = SignalGreen),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f).testTag("shizuku_lte_only_button")
+                            ) {
+                                Text(
+                                    text = "Fijar 'LTE Only' (ADB)",
+                                    color = Color(0xFF003920),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = onExecuteShizukuNrLte,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f).testTag("shizuku_nr_lte_button")
+                            ) {
+                                Text(
+                                    text = "Fijar 'NR/LTE' (5G)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedButton(
+                            onClick = onExecuteShizukuModemReset,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth().testTag("shizuku_reset_modem_button")
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Reiniciar Módem Celular vía Shizuku", fontSize = 11.sp)
+                        }
+
+                        if (shizukuStatus.lastOutput.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                                    .padding(8.dp)
+                            ) {
+                                Text(
+                                    text = "Consola Shizuku: ${shizukuStatus.lastOutput}",
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = if (shizukuStatus.lastCommandSuccess == true) SignalGreenText else CyanPrimary
+                                )
+                            }
                         }
                     }
                 }
@@ -253,7 +484,7 @@ fun ForceCaScreen(
 
                     Text(
                         text = "1. Módems y antenas celulares (eNodeB) desactivan los portadores secundarios (SCELL) en milisegundos cuando estás inactivo para no agotar la batería.\n" +
-                               "2. Al activar este Forzador, la app envía micro-ráfagas controladas de paquetes en segundo plano que mantienen el módem en estado RRC_CONNECTED.\n" +
+                               "2. Al activar este Forzador, el Foreground Service envía micro-ráfagas controladas de paquetes en segundo plano que mantienen el módem en estado RRC_CONNECTED sin importar si cierras la app.\n" +
                                "3. El planificador de la antena detecta demanda de red continua y mantiene el enlace LTE-Advanced (4G+) acoplado permanentemente.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

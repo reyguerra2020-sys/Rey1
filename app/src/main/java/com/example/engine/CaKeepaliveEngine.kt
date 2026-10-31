@@ -27,8 +27,15 @@ data class KeepaliveStats(
 )
 
 class CaKeepaliveEngine(
-    private val onCaStateChanged: (Boolean) -> Unit
+    private var onCaStateChanged: ((Boolean) -> Unit)? = null
 ) {
+    companion object {
+        val shared: CaKeepaliveEngine by lazy { CaKeepaliveEngine() }
+    }
+
+    fun setOnCaStateChangedListener(listener: (Boolean) -> Unit) {
+        this.onCaStateChanged = listener
+    }
     private val scope = CoroutineScope(Dispatchers.IO)
     private var job: Job? = null
 
@@ -66,7 +73,7 @@ class CaKeepaliveEngine(
             statusMessage = "Forzando portadores LTE+... Manteniendo módem en RRC_CONNECTED"
         )
 
-        onCaStateChanged(true)
+        onCaStateChanged?.invoke(true)
 
         job = scope.launch {
             var bursts = 0
@@ -128,7 +135,7 @@ class CaKeepaliveEngine(
             isRunning = false,
             statusMessage = "Forzador detenido. El módem puede volver a portador único para ahorrar batería."
         )
-        onCaStateChanged(false)
+        onCaStateChanged?.invoke(false)
     }
 
     fun toggle(intensity: CaIntensity = _stats.value.intensity) {

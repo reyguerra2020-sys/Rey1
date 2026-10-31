@@ -47,14 +47,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val telephonyScanner = TelephonyScanner(application)
     private val speedTestEngine = SpeedTestEngine()
-    private val caKeepaliveEngine = CaKeepaliveEngine { isForced ->
-        telephonyScanner.setSimulationCaState(isForced)
-        telephonyScanner.refreshNetworkInfo()
+    private val caKeepaliveEngine = CaKeepaliveEngine.shared.apply {
+        setOnCaStateChangedListener { isForced ->
+            telephonyScanner.setSimulationCaState(isForced)
+            telephonyScanner.refreshNetworkInfo()
+        }
     }
 
     val cellDetails: StateFlow<CellDetails> = telephonyScanner.cellDetails
     val keepaliveStats: StateFlow<KeepaliveStats> = caKeepaliveEngine.stats
     val speedTestState: StateFlow<SpeedTestState> = speedTestEngine.state
+    val shizukuStatus: StateFlow<com.example.shizuku.ShizukuStatus> = com.example.shizuku.ShizukuManager.status
 
     private val _currentTab = MutableStateFlow(AppTab.MONITOR)
     val currentTab: StateFlow<AppTab> = _currentTab.asStateFlow()
@@ -85,6 +88,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         refreshNetworkInfo()
         calculateEarfcn("1650")
+        com.example.shizuku.ShizukuManager.init()
 
         // Periodic background poll for cell info updates and signal samples
         viewModelScope.launch {
@@ -117,12 +121,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         telephonyScanner.refreshNetworkInfo()
     }
 
-    fun toggleCaForce() {
-        caKeepaliveEngine.toggle()
+    fun toggleCaForce(context: android.content.Context) {
+        if (keepaliveStats.value.isRunning) {
+            com.example.service.CaForegroundService.stopService(context)
+        } else {
+            com.example.service.CaForegroundService.startService(context, keepaliveStats.value.intensity)
+        }
     }
 
     fun setCaIntensity(intensity: CaIntensity) {
         caKeepaliveEngine.setIntensity(intensity)
+    }
+
+    fun requestShizukuPermission() {
+        com.example.shizuku.ShizukuManager.requestPermission()
+    }
+
+    fun checkShizukuStatus() {
+        com.example.shizuku.ShizukuManager.checkStatus()
+    }
+
+    fun openShizukuApp(context: android.content.Context) {
+        com.example.shizuku.ShizukuManager.openShizukuApp(context)
+    }
+
+    fun executeShizukuLteOnly(subId: Int = 1) {
+        viewModelScope.launch {
+            com.example.shizuku.ShizukuManager.setPreferredNetworkTypeLteOnly(subId)
+            telephonyScanner.refreshNetworkInfo()
+        }
+    }
+
+    fun executeShizukuNrLte(subId: Int = 1) {
+        viewModelScope.launch {
+            com.example.shizuku.ShizukuManager.setPreferredNetworkTypeNrLte(subId)
+            telephonyScanner.refreshNetworkInfo()
+        }
+    }
+
+    fun executeShizukuModemReset() {
+        viewModelScope.launch {
+            com.example.shizuku.ShizukuManager.resetModemRadio()
+            telephonyScanner.refreshNetworkInfo()
+        }
+    }
+
+    fun executeShizukuCommand(cmd: String) {
+        viewModelScope.launch {
+            com.example.shizuku.ShizukuManager.executeCommand(cmd)
+            telephonyScanner.refreshNetworkInfo()
+        }
     }
 
     fun setBandSelectionMode(single: Boolean) {

@@ -21,10 +21,18 @@ import kotlinx.coroutines.launch
 
 enum class AppTab(val title: String) {
     MONITOR("Monitor"),
+    SIGNAL("Señal RF"),
     FORCE_CA("Forzar 4G+"),
-    CODES_TOOLS("Herramientas"),
-    COMBOS("Combos CA")
+    BAND_LOCK("Bandas"),
+    TOOLS("Herramientas")
 }
+
+data class SignalSample(
+    val timestamp: Long = System.currentTimeMillis(),
+    val rsrp: Int = -85,
+    val rsrq: Int = -10,
+    val rssnr: Double = 18.0
+)
 
 data class EarfcnCalcResult(
     val earfcn: Int = 1650,
@@ -60,15 +68,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _detectedBrand = MutableStateFlow(SystemShortcuts.getDetectedBrand())
     val detectedBrand: StateFlow<String> = _detectedBrand.asStateFlow()
 
+    // Signal History for Visual Gauge and live trend chart
+    private val _signalHistory = MutableStateFlow<List<SignalSample>>(emptyList())
+    val signalHistory: StateFlow<List<SignalSample>> = _signalHistory.asStateFlow()
+
+    // Band Locking interface state (Radio button single-select or Checkbox multi-select)
+    private val _isSingleBandMode = MutableStateFlow(false) // false = Checkbox group (Multi-band CA), true = RadioButton group (Single band)
+    val isSingleBandMode: StateFlow<Boolean> = _isSingleBandMode.asStateFlow()
+
+    private val _selectedSingleBand = MutableStateFlow(3) // For RadioButton mode (e.g. Band 3)
+    val selectedSingleBand: StateFlow<Int> = _selectedSingleBand.asStateFlow()
+
+    private val _selectedBands = MutableStateFlow<Set<Int>>(setOf(3, 7)) // For Checkbox group (e.g. B3 + B7 for 4G+ CA)
+    val selectedBands: StateFlow<Set<Int>> = _selectedBands.asStateFlow()
+
     init {
         refreshNetworkInfo()
         calculateEarfcn("1650")
 
-        // Periodic background poll for cell info updates
+        // Periodic background poll for cell info updates and signal samples
         viewModelScope.launch {
             while (isActive) {
-                delay(3000)
                 telephonyScanner.refreshNetworkInfo()
+                val details = telephonyScanner.cellDetails.value
+                val rsrp = if (details.rsrpDbm != -999) details.rsrpDbm else -85
+                val rsrq = if (details.rsrqDb != -999) details.rsrqDb else -10
+                val rssnr = if (details.rssnrDb != -999.0) details.rssnrDb else 18.0
+
+                val sample = SignalSample(
+                    timestamp = System.currentTimeMillis(),
+                    rsrp = rsrp,
+                    rsrq = rsrq,
+                    rssnr = rssnr
+                )
+                val current = _signalHistory.value.takeLast(29) + sample
+                _signalHistory.value = current
+
+                delay(2000)
             }
         }
     }
@@ -89,8 +125,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         caKeepaliveEngine.setIntensity(intensity)
     }
 
-    fun setCaDurationMinutes(minutes: Int) {
-        caKeepaliveEngine.setDuration(minutes)
+    fun setBandSelectionMode(single: Boolean) {
+        _isSingleBandMode.value = single
+    }
+
+    fun selectSingleBand(band: Int) {
+        _selectedSingleBand.value = band
+        _selectedBands.value = setOf(band)
+    }
+
+    fun toggleBand(band: Int) {
+        val current = _selectedBands.value.toMutableSet()
+        if (current.contains(band)) {
+            if (current.size > 1) { // keep at least 1 band selected
+                current.remove(band)
+            }
+        } else {
+            current.add(band)
+        }
+        _selectedBands.value = current
+    }
+
+    fun applyBandPreset(bands: Collection<Int>) {
+        if (bands.isNotEmpty()) {
+            _selectedBands.value = bands.toSet()
+            _selectedSingleBand.value = bands.first()
+        }
+    }
+
+    fun selectAllBands() {
+        _selectedBands.value = LteBandDatabase.allBands.map { it.band }.toSet()
+    }
+
+    fun clearBands() {
+        _selectedBands.value = setOf(3)
+        _selectedSingleBand.value = 3
     }
 
     fun runSpeedTest() {

@@ -66,7 +66,6 @@ fun ForceCaScreen(
     keepaliveStats: KeepaliveStats,
     onToggleCa: () -> Unit,
     onSetIntensity: (CaIntensity) -> Unit,
-    onSetDuration: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -183,12 +182,7 @@ fun ForceCaScreen(
                         if (isRunning) {
                             Spacer(modifier = Modifier.height(14.dp))
                             LinearProgressIndicator(
-                                progress = {
-                                    val total = keepaliveStats.selectedDurationMinutes * 60f
-                                    val remaining = keepaliveStats.remainingSeconds.toFloat()
-                                    (1f - (remaining / total)).coerceIn(0f, 1f)
-                                },
-                                modifier = Modifier.fillMaxWidth().height(6.dp),
+                                modifier = Modifier.fillMaxWidth().height(4.dp),
                                 color = SignalGreen,
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
@@ -211,8 +205,8 @@ fun ForceCaScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                                 MetricItem(
-                                    label = "Tiempo Restante",
-                                    value = "${keepaliveStats.remainingSeconds / 60}m ${keepaliveStats.remainingSeconds % 60}s",
+                                    label = "Tiempo Activo",
+                                    value = "${keepaliveStats.elapsedSeconds / 60}m ${keepaliveStats.elapsedSeconds % 60}s",
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -333,62 +327,6 @@ fun ForceCaScreen(
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-            }
-        }
-
-        // Auto-Stop Timer duration
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "Temporizador de Protección",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Apagado automático para proteger batería y datos móviles:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(5, 15, 30, 60).forEach { mins ->
-                            val isSelected = keepaliveStats.selectedDurationMinutes == mins
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .background(
-                                        color = if (isSelected) CyanPrimary else MaterialTheme.colorScheme.surfaceVariant,
-                                        shape = RoundedCornerShape(10.dp)
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isSelected) CyanPrimary else MaterialTheme.colorScheme.outline,
-                                        shape = RoundedCornerShape(10.dp)
-                                    )
-                                    .clickable { onSetDuration(mins) }
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${mins}m",
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color(0xFF00363D) else MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        }
                     }
                 }
             }

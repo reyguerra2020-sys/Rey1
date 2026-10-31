@@ -36,4 +36,28 @@ class ExampleUnitTest {
         assertTrue(combos.isNotEmpty())
         assertTrue(combos.any { it.bands.contains(3) && it.bands.contains(7) })
     }
+
+    @Test
+    fun signalQuality_thresholds_match3Gpp() {
+        // RSRP
+        assertEquals(com.example.ui.screens.SignalQuality.EXCELLENT, com.example.ui.screens.getRsrpQuality(-75f))
+        assertEquals(com.example.ui.screens.SignalQuality.GOOD, com.example.ui.screens.getRsrpQuality(-85f))
+        assertEquals(com.example.ui.screens.SignalQuality.FAIR, com.example.ui.screens.getRsrpQuality(-95f))
+        assertEquals(com.example.ui.screens.SignalQuality.POOR, com.example.ui.screens.getRsrpQuality(-110f))
+
+        // RSRQ
+        assertEquals(com.example.ui.screens.SignalQuality.EXCELLENT, com.example.ui.screens.getRsrqQuality(-8f))
+        assertEquals(com.example.ui.screens.SignalQuality.POOR, com.example.ui.screens.getRsrqQuality(-20f))
+
+        // SINR
+        assertEquals(com.example.ui.screens.SignalQuality.EXCELLENT, com.example.ui.screens.getSinrQuality(22f))
+        assertEquals(com.example.ui.screens.SignalQuality.POOR, com.example.ui.screens.getSinrQuality(-3f))
+    }
+
+    @Test
+    fun keepalive_stats_hasNoTimerDuration() {
+        val stats = com.example.engine.KeepaliveStats()
+        assertEquals(0L, stats.elapsedSeconds)
+        assertTrue(stats.maxQuotaBytes > 0)
+    }
 }

@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CellTower
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Tune
@@ -45,15 +47,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.engine.SystemShortcuts
 import com.example.ui.AppTab
 import com.example.ui.MainViewModel
-import com.example.ui.components.StatusBadge
-import com.example.ui.screens.CombosScreen
+import com.example.ui.screens.BandLockScreen
 import com.example.ui.screens.ForceCaScreen
 import com.example.ui.screens.MonitorScreen
+import com.example.ui.screens.SignalGaugeScreen
 import com.example.ui.screens.ToolsScreen
 import com.example.ui.theme.CyanPrimary
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.SignalGreen
-import com.example.ui.theme.SignalGreenContainer
 import com.example.ui.theme.SignalGreenText
 
 class MainActivity : ComponentActivity() {
@@ -84,6 +85,10 @@ fun MainAppScreen(viewModel: MainViewModel) {
     val detectedBrand by viewModel.detectedBrand.collectAsStateWithLifecycle()
     val earfcnInput by viewModel.earfcnInput.collectAsStateWithLifecycle()
     val earfcnResult by viewModel.earfcnResult.collectAsStateWithLifecycle()
+    val signalHistory by viewModel.signalHistory.collectAsStateWithLifecycle()
+    val isSingleBandMode by viewModel.isSingleBandMode.collectAsStateWithLifecycle()
+    val selectedSingleBand by viewModel.selectedSingleBand.collectAsStateWithLifecycle()
+    val selectedBands by viewModel.selectedBands.collectAsStateWithLifecycle()
 
     val isCaActive = cellDetails.isCarrierAggregationActive || keepaliveStats.isRunning
 
@@ -142,6 +147,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.testTag("bottom_nav_bar")
             ) {
+                // Tab 1: Monitor
                 NavigationBarItem(
                     selected = currentTab == AppTab.MONITOR,
                     onClick = { viewModel.selectTab(AppTab.MONITOR) },
@@ -151,7 +157,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
                             contentDescription = "Monitor"
                         )
                     },
-                    label = { Text("Monitor", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    label = { Text("Monitor", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF00363D),
                         selectedTextColor = CyanPrimary,
@@ -162,6 +168,28 @@ fun MainAppScreen(viewModel: MainViewModel) {
                     modifier = Modifier.testTag("tab_monitor")
                 )
 
+                // Tab 2: Signal RF (Visual Gauge)
+                NavigationBarItem(
+                    selected = currentTab == AppTab.SIGNAL,
+                    onClick = { viewModel.selectTab(AppTab.SIGNAL) },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = "Señal RF"
+                        )
+                    },
+                    label = { Text("Señal RF", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFF00363D),
+                        selectedTextColor = CyanPrimary,
+                        indicatorColor = CyanPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.testTag("tab_signal")
+                )
+
+                // Tab 3: Forzar 4G+
                 NavigationBarItem(
                     selected = currentTab == AppTab.FORCE_CA,
                     onClick = { viewModel.selectTab(AppTab.FORCE_CA) },
@@ -171,7 +199,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
                             contentDescription = "Forzar 4G+"
                         )
                     },
-                    label = { Text("Forzar 4G+", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    label = { Text("Forzar 4G+", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF00363D),
                         selectedTextColor = SignalGreenText,
@@ -182,16 +210,38 @@ fun MainAppScreen(viewModel: MainViewModel) {
                     modifier = Modifier.testTag("tab_force_ca")
                 )
 
+                // Tab 4: Bandas (Band Lock Radio/Checkbox Group)
                 NavigationBarItem(
-                    selected = currentTab == AppTab.CODES_TOOLS,
-                    onClick = { viewModel.selectTab(AppTab.CODES_TOOLS) },
+                    selected = currentTab == AppTab.BAND_LOCK,
+                    onClick = { viewModel.selectTab(AppTab.BAND_LOCK) },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Bandas"
+                        )
+                    },
+                    label = { Text("Bandas", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFF00363D),
+                        selectedTextColor = CyanPrimary,
+                        indicatorColor = CyanPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.testTag("tab_band_lock")
+                )
+
+                // Tab 5: Herramientas
+                NavigationBarItem(
+                    selected = currentTab == AppTab.TOOLS,
+                    onClick = { viewModel.selectTab(AppTab.TOOLS) },
                     icon = {
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = "Herramientas"
                         )
                     },
-                    label = { Text("Menús & Bandas", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    label = { Text("Herramientas", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF00363D),
                         selectedTextColor = CyanPrimary,
@@ -200,26 +250,6 @@ fun MainAppScreen(viewModel: MainViewModel) {
                         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     modifier = Modifier.testTag("tab_tools")
-                )
-
-                NavigationBarItem(
-                    selected = currentTab == AppTab.COMBOS,
-                    onClick = { viewModel.selectTab(AppTab.COMBOS) },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.Speed,
-                            contentDescription = "Combos & Test"
-                        )
-                    },
-                    label = { Text("Combos & Test", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF00363D),
-                        selectedTextColor = CyanPrimary,
-                        indicatorColor = CyanPrimary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.testTag("tab_combos")
                 )
             }
         }
@@ -236,22 +266,38 @@ fun MainAppScreen(viewModel: MainViewModel) {
                     onRefresh = { viewModel.refreshNetworkInfo() },
                     onNavigateToForce = { viewModel.selectTab(AppTab.FORCE_CA) }
                 )
+                AppTab.SIGNAL -> SignalGaugeScreen(
+                    cellDetails = cellDetails,
+                    signalHistory = signalHistory,
+                    onRefresh = { viewModel.refreshNetworkInfo() },
+                    onNavigateToForce = { viewModel.selectTab(AppTab.FORCE_CA) }
+                )
                 AppTab.FORCE_CA -> ForceCaScreen(
                     cellDetails = cellDetails,
                     keepaliveStats = keepaliveStats,
                     onToggleCa = { viewModel.toggleCaForce() },
-                    onSetIntensity = { viewModel.setCaIntensity(it) },
-                    onSetDuration = { viewModel.setCaDurationMinutes(it) }
+                    onSetIntensity = { viewModel.setCaIntensity(it) }
                 )
-                AppTab.CODES_TOOLS -> ToolsScreen(
+                AppTab.BAND_LOCK -> BandLockScreen(
+                    cellDetails = cellDetails,
+                    detectedBrand = detectedBrand,
+                    isSingleBandMode = isSingleBandMode,
+                    selectedSingleBand = selectedSingleBand,
+                    selectedBands = selectedBands,
+                    onSetMode = { viewModel.setBandSelectionMode(it) },
+                    onSelectSingleBand = { viewModel.selectSingleBand(it) },
+                    onToggleBand = { viewModel.toggleBand(it) },
+                    onApplyPreset = { viewModel.applyBandPreset(it) },
+                    onSelectAllBands = { viewModel.selectAllBands() },
+                    onClearBands = { viewModel.clearBands() }
+                )
+                AppTab.TOOLS -> ToolsScreen(
                     detectedBrand = detectedBrand,
                     earfcnInput = earfcnInput,
                     earfcnResult = earfcnResult,
-                    onEarfcnChanged = { viewModel.onEarfcnInputChanged(it) }
-                )
-                AppTab.COMBOS -> CombosScreen(
                     cellDetails = cellDetails,
                     speedTestState = speedTestState,
+                    onEarfcnChanged = { viewModel.onEarfcnInputChanged(it) },
                     onRunSpeedTest = { viewModel.runSpeedTest() },
                     onResetSpeedTest = { viewModel.resetSpeedTest() }
                 )

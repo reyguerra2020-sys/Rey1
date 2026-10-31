@@ -22,8 +22,6 @@ data class KeepaliveStats(
     val lastLatencyMs: Long = 0L,
     val elapsedSeconds: Long = 0L,
     val maxQuotaBytes: Long = 100 * 1024 * 1024L, // 100 MB default safeguard
-    val selectedDurationMinutes: Int = 15, // 15 min default
-    val remainingSeconds: Long = 900L,
     val intensity: CaIntensity = CaIntensity.BALANCED,
     val statusMessage: String = "Inactivo. Presiona para forzar agregación 4G+"
 )
@@ -52,27 +50,16 @@ class CaKeepaliveEngine(
         _stats.value = _stats.value.copy(intensity = intensity)
         if (_stats.value.isRunning) {
             // Restart with new interval
-            val currentDuration = _stats.value.selectedDurationMinutes
             stop()
-            start(intensity, currentDuration)
+            start(intensity)
         }
     }
 
-    fun setDuration(minutes: Int) {
-        _stats.value = _stats.value.copy(
-            selectedDurationMinutes = minutes,
-            remainingSeconds = minutes * 60L
-        )
-    }
-
-    fun start(intensity: CaIntensity = _stats.value.intensity, durationMinutes: Int = _stats.value.selectedDurationMinutes) {
+    fun start(intensity: CaIntensity = _stats.value.intensity) {
         job?.cancel()
-        val totalSecs = durationMinutes * 60L
         _stats.value = _stats.value.copy(
             isRunning = true,
             intensity = intensity,
-            selectedDurationMinutes = durationMinutes,
-            remainingSeconds = totalSecs,
             elapsedSeconds = 0L,
             burstsCount = 0,
             totalBytesTransferred = 0L,
@@ -87,7 +74,7 @@ class CaKeepaliveEngine(
             var elapsed = 0L
             val intervalMs = intensity.intervalMs
 
-            while (isActive && elapsed < totalSecs) {
+            while (isActive) {
                 val startTime = System.currentTimeMillis()
                 val url = testUrls[bursts % testUrls.size]
 
@@ -111,14 +98,12 @@ class CaKeepaliveEngine(
                 bursts++
                 val sleepSecs = (intervalMs / 1000).coerceAtLeast(1)
                 elapsed += sleepSecs
-                val remaining = (totalSecs - elapsed).coerceAtLeast(0)
 
                 _stats.value = _stats.value.copy(
                     burstsCount = bursts,
                     totalBytesTransferred = bytes,
                     lastLatencyMs = latency,
                     elapsedSeconds = elapsed,
-                    remainingSeconds = remaining,
                     statusMessage = "4G+ / LTE-A Forzado Activo | Ráfaga #${bursts} (${latency}ms)"
                 )
 

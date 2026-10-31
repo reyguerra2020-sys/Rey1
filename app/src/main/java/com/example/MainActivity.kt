@@ -116,7 +116,7 @@ fun MainAppScreen(viewModel: MainViewModel) {
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "FORCE 4G+ LTE",
+                            text = "FORCE 4G PLUS",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Black,
                             letterSpacing = 1.sp

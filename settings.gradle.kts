@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Force 4G+ LTE"
+rootProject.name = "force 4G plus"
 
 include(":app")
